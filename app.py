@@ -31,19 +31,21 @@ def login():
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False
 
-        user = User.objects(email=email)
-
-        print(user.__dict__)
+        # user = User.objects.get(email=email)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            user = None
 
         # check if user actually exists
         # take the user supplied password, hash it, and compare it to the hashed password in database
-        if not user or not check_password_hash(user.password, password): 
-            flash('Please check your login details and try again.')
-            return redirect(url_for('login')) # if user doesn't exist or password is wrong, reload the page
-
         # if the above check passes, then we know the user has the right credentials
-        login_user(user, remember=remember)
-        return redirect(url_for('profile'))
+        if user and check_password_hash(user.password, password):
+            login_user(user, remember=remember)
+            return render_template('profile.html', name=user.name)
+        else:
+            flash('Please check your login details and try again.')
+            return render_template('login.html') # if user doesn't exist or password is wrong, reload the page
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -57,14 +59,15 @@ def signup():
 
         if user: # if a user is found, we want to redirect back to signup page so user can try again
             flash('Email address already exists')
-            return redirect(url_for('signup'))
+            return render_template('signup.html')
 
         # create new user with the form data. Hash the password so plaintext version isn't saved.
         new_user = User(email=email, name=name, password=generate_password_hash(password, method='sha256'))
 
         # add the new user to the database
         new_user.save()
-        return redirect(url_for('login'))
+        flash('User created, login again')
+        return render_template('login.html')
 
     return render_template('signup.html')
 
